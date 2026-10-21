@@ -1,0 +1,58 @@
+
+name: Deploy portfolio to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Extract portfolio ZIP
+        run: |
+          mkdir -p extracted site
+          unzip -q ashwani-portfolio.zip -d extracted
+
+          INDEX_FILE="$(find extracted -type f -name index.html -print -quit)"
+
+          if [ -z "$INDEX_FILE" ]; then
+            echo "index.html was not found inside the ZIP."
+            exit 1
+          fi
+
+          SITE_DIR="$(dirname "$INDEX_FILE")"
+          cp -a "$SITE_DIR"/. site/
+          touch site/.nojekyll
+          test -f site/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish website
+        id: deployment
+        uses: actions/deploy-pages@v4
+        
